@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+<script>
+(function(){var ok=false;try{ok=localStorage.getItem('qrs_auth')==='1'||sessionStorage.getItem('qrs_auth')==='1';}catch(e){}
+if(!ok)document.documentElement.classList.add('qrs-locked');})();
+</script>
+<style>
+html.qrs-locked body > *:not(#qrs-login){visibility:hidden!important}
+#qrs-login{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.8);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-family:system-ui,-apple-system,"PingFang SC","Segoe UI",sans-serif}
+html.qrs-locked #qrs-login{display:flex}
+#qrs-login .box{width:min(360px,calc(100vw - 32px));background:#fff;color:#0f172a;border-radius:16px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.35);box-sizing:border-box}
+#qrs-login h2{margin:0 0 6px;font-size:22px}
+#qrs-login p{margin:0 0 18px;color:#64748b;font-size:14px}
+#qrs-login input[type=password]{width:100%;box-sizing:border-box;height:44px;padding:0 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px;outline:none;background:#fff;color:#0f172a}
+#qrs-login input[type=password]:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+#qrs-login label.remember{display:flex;gap:6px;align-items:center;margin:12px 0;font-size:13px;color:#475569}
+#qrs-login button{width:100%;height:44px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+#qrs-login button:disabled{opacity:.6;cursor:wait}
+#qrs-login .err{color:#dc2626;font-size:13px;min-height:18px;margin-top:10px}
+</style>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>QR Studio — Generate & Brand QR Codes</title>
@@ -914,6 +933,41 @@ function matrixRain(){const c=document.createElement('canvas');Object.assign(c.s
 console.log('%c🎨 QR Studio %cby deadboy18','font-size:20px;font-weight:bold;color:#06b6d4;','font-size:14px;color:#a1a1aa;');
 console.log('%c🥚 Psst... hidden easter eggs!','font-size:12px;color:#f59e0b;font-style:italic;');
 console.log('%c  ⬆⬆⬇⬇⬅➡⬅➡🅱🅰  %cKonami → 🎉\n%c  📱 Triple-tap title   %c→ 🌈 Party\n%c  📱 Shake phone        %c→ 🎊 Confetti\n%c  ⌨️  "matrix" in URL   %c→ 💊 Red pill','color:#22c55e;font-family:monospace;font-size:11px;','color:#a1a1aa;font-size:11px;','color:#22c55e;font-family:monospace;font-size:11px;','color:#a1a1aa;font-size:11px;','color:#22c55e;font-family:monospace;font-size:11px;','color:#a1a1aa;font-size:11px;','color:#22c55e;font-family:monospace;font-size:11px;','color:#a1a1aa;font-size:11px;');
+</script>
+<div id="qrs-login" role="dialog" aria-modal="true" aria-labelledby="qrs-title">
+  <form class="box" id="qrs-form" autocomplete="off">
+    <h2 id="qrs-title">QR Studio</h2>
+    <p>请输入访问密码</p>
+    <input type="password" id="qrs-pass" placeholder="密码" autocomplete="current-password" autofocus>
+    <label class="remember"><input type="checkbox" id="qrs-remember" checked> 记住此设备</label>
+    <button type="submit" id="qrs-btn">进入</button>
+    <div class="err" id="qrs-err"></div>
+  </form>
+</div>
+<script>
+(function(){
+  // ===== 配置：改成你部署后的 Worker 地址 =====
+  var AUTH_API = 'https://qr-toolbox.tsui0086.workers.dev';
+  // ==========================================
+  var $=function(id){return document.getElementById(id)};
+  function store(){return $('qrs-remember').checked?localStorage:sessionStorage}
+  function unlock(token){var st=store();st.setItem('qrs_auth','1');st.setItem('qrs_token',token);document.documentElement.classList.remove('qrs-locked')}
+  function lock(){['localStorage','sessionStorage'].forEach(function(k){try{window[k].removeItem('qrs_auth');window[k].removeItem('qrs_token')}catch(e){}});document.documentElement.classList.add('qrs-locked')}
+  var base=AUTH_API.replace(/\/$/,'');
+  $('qrs-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var pw=$('qrs-pass').value;$('qrs-btn').disabled=true;$('qrs-err').textContent='';
+    fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+      .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'登录失败');unlock(d.token)})})
+      .catch(function(err){$('qrs-err').textContent=(err instanceof TypeError)?'无法连接 Worker，请检查 AUTH_API 地址':(err.message||'登录失败');$('qrs-pass').select()})
+      .then(function(){$('qrs-btn').disabled=false;$('qrs-pass').value=''});
+  });
+  window.qrsLogout=function(){lock();setTimeout(function(){$('qrs-pass').focus()},50)};
+  if(!document.documentElement.classList.contains('qrs-locked')){
+    var t=localStorage.getItem('qrs_token')||sessionStorage.getItem('qrs_token')||'';
+    fetch(base+'/api/verify',{headers:{Authorization:'Bearer '+t}}).then(function(r){if(r.status===401)lock()}).catch(function(){});
+  }
+})();
 </script>
 </body>
 </html>
